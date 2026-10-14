@@ -1,0 +1,6 @@
+.git
+.github
+config
+tests
+*.md
+compose.yaml

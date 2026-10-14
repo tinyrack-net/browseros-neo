@@ -1,0 +1,17 @@
+services:
+  browseros-neo:
+    image: ghcr.io/tinyrack-net/browseros-neo:latest
+    container_name: browseros-neo
+    restart: unless-stopped
+    shm_size: 2gb
+    ports:
+      - "5800:5800" # Web GUI
+      - "9300:9300" # MCP (Bearer token)
+    environment:
+      TZ: Asia/Seoul
+      USER_ID: "1000"
+      GROUP_ID: "1000"
+      # Required to enable the MCP endpoint. Generate with: openssl rand -hex 32
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
+    volumes:
+      - ./config:/config
