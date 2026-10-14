@@ -68,11 +68,6 @@ http {
     proxy_temp_path ${RUN_DIR}/proxy;
     client_max_body_size 50m;
 
-    map \$http_authorization \$mcp_authorized {
-        default 0;
-        "Bearer ${MCP_AUTH_TOKEN}" 1;
-    }
-
     server {
         listen ${MCP_LISTENING_PORT};
 
@@ -83,7 +78,9 @@ http {
         }
 
         location /mcp {
-            if (\$mcp_authorized = 0) {
+            # Plain string comparison: a map would put the token into a hash
+            # whose bucket size is too small for long tokens.
+            if (\$http_authorization != "Bearer ${MCP_AUTH_TOKEN}") {
                 add_header WWW-Authenticate 'Bearer realm="BrowserOS neo MCP"' always;
                 return 401;
             }

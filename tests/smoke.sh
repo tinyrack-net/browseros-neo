@@ -14,7 +14,8 @@ set -euo pipefail
 
 IMAGE="${1:?usage: smoke.sh IMAGE}"
 NAME="browseros-neo-smoke-$$"
-TOKEN="smoke-test-token-0123456789abcdef"
+# 64 hex characters, the same shape as `openssl rand -hex 32`.
+TOKEN="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 TIMEOUT="${SMOKE_TIMEOUT:-180}"
 
 cleanup() {
