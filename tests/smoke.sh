@@ -30,6 +30,7 @@ trap cleanup EXIT
 
 docker run -d --name "${NAME}" \
     --shm-size 2g \
+    --security-opt seccomp=unconfined \
     -e MCP_AUTH_TOKEN="${TOKEN}" \
     -p 127.0.0.1::5800 \
     -p 127.0.0.1::9300 \
@@ -88,5 +89,11 @@ tools="$(mcp "${TOKEN}" '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
     -H "Mcp-Session-Id: ${SESSION}" -H "MCP-Protocol-Version: 2025-06-18")"
 grep -q '"tools"' <<<"${tools}" || { echo "FAIL: unexpected tools/list response: ${tools}"; exit 1; }
 echo "OK: MCP tools/list returns tools"
+
+if docker exec "${NAME}" sh -c 'pgrep -f -- "--type=renderer" | head -n1 | xargs -I{} cat /proc/{}/cmdline' | tr '\0' '\n' | grep -qx -- '--no-sandbox'; then
+    echo "FAIL: renderer runs without the Chromium sandbox"
+    exit 1
+fi
+echo "OK: Chromium sandbox enabled"
 
 echo "All smoke tests passed."

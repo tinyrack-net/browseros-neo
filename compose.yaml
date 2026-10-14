@@ -4,6 +4,10 @@ services:
     container_name: browseros-neo
     restart: unless-stopped
     shm_size: 2gb
+    # Allows the user namespaces Chromium's sandbox needs. Without it the
+    # browser falls back to --no-sandbox.
+    security_opt:
+      - seccomp=unconfined
     ports:
       - "5800:5800" # Web GUI
       - "9300:9300" # MCP (Bearer token)

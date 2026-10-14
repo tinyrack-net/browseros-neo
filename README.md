@@ -21,6 +21,7 @@ Or with `docker run`:
 ```bash
 docker run -d --name browseros-neo \
   --shm-size 2g \
+  --security-opt seccomp=unconfined \
   -p 5800:5800 -p 9300:9300 \
   -e MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
   -v "$PWD/config:/config" \
@@ -44,6 +45,7 @@ On top of the base image's [environment variables](https://github.com/jlesage/do
 | --- | --- | --- |
 | `MCP_AUTH_TOKEN` | MCP Bearer token. If empty, the MCP endpoint is disabled. At least 16 characters from `A-Z a-z 0-9 . _ ~ + / = -` | (empty) |
 | `MCP_LISTENING_PORT` | MCP proxy port inside the container | `9300` |
+| `BROWSER_SANDBOX` | Chromium sandbox: `auto` (on when user namespaces are available, otherwise `--no-sandbox`), `on`, `off` | `auto` |
 | `KEEP_APP_RUNNING` | Restart the browser automatically if it exits | `1` |
 
 ## Ports
@@ -89,7 +91,8 @@ BrowserOS neo's MCP server (`127.0.0.1:9010/mcp`) has no authentication of its o
 
 ## Security notes
 
-- The browser runs with `--no-sandbox` (a Chromium sandbox can't be used in an unprivileged container). This weakens renderer isolation, so don't use it as a general-purpose browser on untrusted sites; keep it to its role as an agent browser.
+- Chromium's sandbox needs user namespaces, which Docker's default seccomp profile blocks. Run with `--security-opt seccomp=unconfined` (K8s: `securityContext.seccompProfile.type: Unconfined`) to enable the sandbox. Without it the browser falls back to `--no-sandbox` and shows a warning bar. With the fallback, renderer isolation is weak, so don't use it to browse untrusted sites.
+  - `seccomp=unconfined` removes only the container's syscall filter. Namespaces, capability restrictions, and the non-root user stay in place, and Chromium applies its own seccomp-bpf filter to renderers.
 - The web GUI has no authentication by default. Protect it with a reverse proxy or [web authentication](https://github.com/jlesage/docker-baseimage-gui#web-authentication) (`WEB_AUTHENTICATION=1` + `SECURE_CONNECTION=1`) before exposing it externally.
 - The MCP token is passed in plaintext over HTTP. When it crosses a network, put it behind a TLS-terminating reverse proxy.
 

@@ -39,6 +39,7 @@ RUN \
 # Public environment variables.
 ENV \
     KEEP_APP_RUNNING=1 \
+    BROWSER_SANDBOX=auto \
     MCP_LISTENING_PORT=9300
 
 EXPOSE 5800 9300
