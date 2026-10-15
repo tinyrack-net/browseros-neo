@@ -30,6 +30,15 @@ RUN \
 # Generate and install favicons from the icon shipped in the package.
 RUN install_app_icon.sh file:///usr/share/icons/hicolor/256x256/apps/browserclaw.png
 
+# Teach the base image's nginx where to find the MCP configuration that
+# 55-mcp.sh generates at container start. The base image has no generic
+# include hook, so one include line is added per level; the script fails the
+# build when the base image no longer looks the way it expects.
+COPY scripts/patch-nginx-includes.sh /tmp/patch-nginx-includes.sh
+RUN \
+    sh /tmp/patch-nginx-includes.sh && \
+    rm -f /tmp/patch-nginx-includes.sh
+
 COPY rootfs/ /
 
 # Docker Desktop on Windows marks every file in the build context as
@@ -45,12 +54,17 @@ RUN \
     set-cont-env DOCKER_IMAGE_VERSION "${BROWSEROS_VERSION}"
 
 # Public environment variables.
+#
+# Both listeners default to the same port: the web GUI serves MCP on /mcp, so
+# a container exposes a single port unless MCP_LISTENING_PORT is moved
+# elsewhere (see 55-mcp.sh).
 ENV \
     KEEP_APP_RUNNING=1 \
     BROWSER_SANDBOX=auto \
+    WEB_LISTENING_PORT=9300 \
     MCP_LISTENING_PORT=9300
 
-EXPOSE 5800 9300
+EXPOSE 9300
 
 LABEL \
     org.opencontainers.image.title="browseros-neo" \

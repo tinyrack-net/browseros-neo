@@ -9,13 +9,16 @@ services:
     security_opt:
       - seccomp=unconfined
     ports:
-      - "5800:5800" # Web GUI
-      - "9300:9300" # MCP (Bearer token)
+      - "9300:9300" # Web GUI (/), MCP (/mcp), health check (/healthz)
     environment:
       TZ: Asia/Seoul
       USER_ID: "1000"
       GROUP_ID: "1000"
       # Required to enable the MCP endpoint. Generate with: openssl rand -hex 32
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
+      # WEB_LISTENING_PORT and MCP_LISTENING_PORT are both 9300 by default, so
+      # the GUI and MCP share a single port. Set MCP_LISTENING_PORT to another
+      # value to give MCP its own port (and publish it here).
+      # MCP_LISTENING_PORT: "9301"
     volumes:
       - ./config:/config
