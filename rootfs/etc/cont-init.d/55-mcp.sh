@@ -31,7 +31,9 @@ MCP_SITE_CONF=/var/tmp/nginx/mcp_site.conf
 
 MCP_AUTH_TOKEN="${MCP_AUTH_TOKEN:-}"
 MCP_LISTENING_PORT="${MCP_LISTENING_PORT:-9300}"
-WEB_LISTENING_PORT="${WEB_LISTENING_PORT:-5800}"
+# The image sets WEB_LISTENING_PORT to the same value, so the GUI and MCP share
+# one port unless the two are deliberately kept apart.
+WEB_LISTENING_PORT="${WEB_LISTENING_PORT:-9300}"
 
 # 10-nginx.sh clears /var/tmp/nginx/*.conf and creates the directory, but the
 # compiled-in temp paths are what the proxy needs, and nginx expects them to

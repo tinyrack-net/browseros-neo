@@ -36,7 +36,17 @@ cleanup() {
     status=$?
     if [ "${status}" -ne 0 ] && [ -n "${CONTAINER}" ]; then
         echo "---- container logs (${CONTAINER}) ----"
-        docker logs "${CONTAINER}" 2>&1 | tail -n 200 || true
+        docker logs "${CONTAINER}" 2>&1 | tail -n 400 || true
+        echo "---- container state ----"
+        docker exec "${CONTAINER}" sh -c '
+            ls -l /var/tmp/nginx/*.conf
+            echo "-- generated MCP configuration"
+            cat /var/tmp/nginx/mcp.conf /var/tmp/nginx/mcp_site.conf
+            echo "-- includes"
+            grep -n "include" /opt/base/etc/nginx/default_site.conf /opt/base/etc/nginx/nginx.conf
+            echo "-- nginx error log"
+            tail -n 50 /config/log/nginx/error.log
+        ' 2>&1 || true
     fi
     if [ -n "${CONTAINER}" ]; then
         docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
@@ -87,10 +97,25 @@ wait_status() {
     local deadline=$((SECONDS + TIMEOUT))
     while :; do
         code="$(curl -s -o /dev/null -w '%{http_code}' "${url}" || true)"
-        if [ "${want#*${code}}" != "${want}" ]; then
-            return 0
-        fi
-        [ "${SECONDS}" -lt "${deadline}" ] || fail "${what} did not answer (last status ${code})"
+        case " ${want} " in
+            *" ${code} "*) return 0 ;;
+        esac
+        [ "${SECONDS}" -lt "${deadline}" ] || fail "${what} did not answer (last status ${code:-none})"
+        sleep 2
+    done
+}
+
+# wait_body URL EXPECTED DESCRIPTION
+wait_body() {
+    local url="$1" want="$2" what="$3" body code
+    local deadline=$((SECONDS + TIMEOUT))
+    while :; do
+        body="$(curl -s "${url}" || true)"
+        [ "${body}" = "${want}" ] && return 0
+        [ "${SECONDS}" -lt "${deadline}" ] || {
+            code="$(curl -s -o /dev/null -w '%{http_code}' "${url}" || true)"
+            fail "${what} answered ${code:-nothing} with '${body}', want '${want}'"
+        }
         sleep 2
     done
 }
@@ -173,7 +198,7 @@ start_container shared \
 PORT="$(host_port 9300)"
 WEB_URL="http://127.0.0.1:${PORT}"
 wait_status "${WEB_URL}/" 200 "the web GUI"
-[ "$(curl -s "${WEB_URL}/healthz")" = "ok" ] || fail "the health check does not return ok"
+wait_body "${WEB_URL}/healthz" ok "the health check"
 wait_mcp "${WEB_URL}/mcp" "MCP"
 check_mcp "${WEB_URL}/mcp" "shared port"
 check_sandbox
@@ -192,8 +217,11 @@ start_container auth \
 PORT="$(host_port 9300)"
 WEB_URL="http://127.0.0.1:${PORT}"
 wait_status "${WEB_URL}/" 302 "the login redirect"
-curl -s -D - -o /dev/null "${WEB_URL}/" | grep -qi '^location: /login/' \
-    || fail "the web GUI does not redirect to the login page"
+deadline=$((SECONDS + TIMEOUT))
+until curl -s -D - -o /dev/null "${WEB_URL}/" | grep -qi '^location: /login/'; do
+    [ "${SECONDS}" -lt "${deadline}" ] || fail "the web GUI does not redirect to the login page"
+    sleep 2
+done
 ok "the web GUI redirects to the login page"
 wait_mcp "${WEB_URL}/mcp" "MCP"
 check_mcp "${WEB_URL}/mcp" "web authentication"
@@ -210,7 +238,7 @@ start_container split \
 WEB_URL="http://127.0.0.1:$(host_port 5800)"
 MCP_URL="http://127.0.0.1:$(host_port 9300)"
 wait_status "${WEB_URL}/" 200 "the web GUI"
-[ "$(curl -s "${MCP_URL}/healthz")" = "ok" ] || fail "the health check does not return ok"
+wait_body "${MCP_URL}/healthz" ok "the health check"
 code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "${INIT}" "${WEB_URL}/mcp")"
 [ "${code}" = 404 ] || fail "the web port answered ${code} for /mcp, want 404"
 ok "the web port serves no MCP when the ports differ"
