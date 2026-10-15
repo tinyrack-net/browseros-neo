@@ -12,7 +12,8 @@ ARG BROWSEROS_DEB_URL=https://github.com/browseros-ai/BrowserOS/releases/downloa
 
 # Install BrowserOS neo from the official Debian package. add-pkg prepares the
 # environment package scripts expect (e.g. /var/log -> /config/log) and cleans
-# up afterwards.
+# up afterwards. xdotool is used by the window-guard service to undo the window
+# minimize that would otherwise leave the web GUI black and unclickable.
 RUN \
     set -eu; \
     test -n "${BROWSEROS_VERSION}" || { echo "BROWSEROS_VERSION is required" >&2; exit 1; }; \
@@ -21,7 +22,7 @@ RUN \
     add-pkg --virtual build-deps curl; \
     curl -fsSL --retry 3 -o /tmp/browseros-neo.deb "${BROWSEROS_DEB_URL}"; \
     echo "${BROWSEROS_SHA256}  /tmp/browseros-neo.deb" | sha256sum -c -; \
-    add-pkg /tmp/browseros-neo.deb fonts-noto-cjk; \
+    add-pkg /tmp/browseros-neo.deb fonts-noto-cjk xdotool; \
     del-pkg build-deps; \
     test -x /usr/bin/browserclaw; \
     rm -f /tmp/browseros-neo.deb
@@ -31,7 +32,14 @@ RUN install_app_icon.sh file:///usr/share/icons/hicolor/256x256/apps/browserclaw
 
 COPY rootfs/ /
 
+# Docker Desktop on Windows marks every file in the build context as
+# executable. A non-empty *.dep file is parsed as a Boolean, but an executable
+# one is run and its output is used instead, so an empty executable *.dep file
+# fails to load and the service group refuses to start. Normalize the mode of
+# the dependency markers. The service programs (run/respawn) must stay
+# executable and are left as they are.
 RUN \
+    find /etc/services.d -name '*.dep' -exec chmod 0644 {} + && \
     set-cont-env APP_NAME "BrowserOS neo" && \
     set-cont-env APP_VERSION "${BROWSEROS_VERSION}" && \
     set-cont-env DOCKER_IMAGE_VERSION "${BROWSEROS_VERSION}"

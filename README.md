@@ -67,6 +67,10 @@ BrowserOS neo's internal ports (`9010` MCP, `9110` CDP, `9210` server) listen on
 
 Sessions and settings persist across container restarts and recreation, as long as `/config` is a volume.
 
+## Web GUI window handling
+
+BrowserOS neo draws its own window controls, including a minimize button. A minimized window is unmapped and stops rendering, and because the desktop has no taskbar and no window menu there would be no way to bring it back from the web browser, leaving the GUI on a black, unclickable screen. A `window-guard` service de-iconifies the application window as soon as it gets minimized.
+
 ## Connecting an MCP client
 
 ```json

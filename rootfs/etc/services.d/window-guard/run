@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -u # Treat unset variables as an error.
+
+#
+# Keep the application window from staying minimized.
+#
+# BrowserOS neo (Chromium) draws its own window controls, one of which
+# minimizes the window. A minimized window is unmapped and stops rendering,
+# so the web GUI shows a black screen and clicks have nothing to act on.
+# This desktop has no taskbar, no window menu and no keyboard bindings, so
+# there is no way to bring the window back once it is minimized. Undo the
+# minimize as soon as it happens.
+#
+
+WINDOW_NAME="${APP_NAME:-BrowserOS neo}"
+XDOTOOL=/usr/bin/xdotool
+
+while true; do
+    # A minimized window is unmapped, so it is missing from the list of
+    # visible windows even though it still exists.
+    if [ -z "$("${XDOTOOL}" search --onlyvisible --name "${WINDOW_NAME}" 2>/dev/null)" ]; then
+        for win in $("${XDOTOOL}" search --name "${WINDOW_NAME}" 2>/dev/null); do
+            "${XDOTOOL}" windowmap "${win}" 2>/dev/null || true
+            "${XDOTOOL}" windowactivate "${win}" 2>/dev/null || true
+        done
+    fi
+    sleep 2
+done
+
+# vim:ft=sh:ts=4:sw=4:et:sts=4
