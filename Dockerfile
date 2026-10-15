@@ -45,14 +45,17 @@ COPY rootfs/ /
 # executable, while a Linux checkout takes the mode from git. A non-empty
 # *.dep file is parsed as a Boolean, but an executable one is run and its
 # output is used instead, so an empty executable *.dep file fails to load and
-# the service group refuses to start. Normalize the modes the image depends on
-# instead of trusting the build context: the dependency markers are plain
-# files, while the container init scripts and the service programs must be
-# executable.
+# the service group refuses to start. Normalize the modes of the files this
+# image adds instead of trusting the build context: the dependency markers are
+# plain files, while the init script and the service programs must be
+# executable. The base image's own files are left alone, since some of its
+# respawn files are empty Boolean markers that must not become executable.
 RUN \
     find /etc/services.d -name '*.dep' -exec chmod 0644 {} + && \
-    chmod 0755 /etc/cont-init.d/*.sh && \
-    find /etc/services.d -type f \( -name run -o -name respawn \) -exec chmod 0755 {} + && \
+    chmod 0755 \
+        /etc/cont-init.d/55-mcp.sh \
+        /etc/services.d/window-guard/run \
+        /etc/services.d/window-guard/respawn && \
     set-cont-env APP_NAME "BrowserOS neo" && \
     set-cont-env APP_VERSION "${BROWSEROS_VERSION}" && \
     set-cont-env DOCKER_IMAGE_VERSION "${BROWSEROS_VERSION}"

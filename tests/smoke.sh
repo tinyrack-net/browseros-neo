@@ -58,6 +58,12 @@ trap cleanup EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 ok() { echo "OK: $*"; }
 
+# Fail right away instead of waiting out the timeout when the container exited.
+assert_running() {
+    [ "$(docker inspect -f '{{.State.Running}}' "${CONTAINER}" 2>/dev/null)" = true ] \
+        || fail "the container exited"
+}
+
 start_container() {
     # $1 = scenario name, the rest = docker run arguments
     local name="$1"
@@ -100,6 +106,7 @@ wait_status() {
         case " ${want} " in
             *" ${code} "*) return 0 ;;
         esac
+        assert_running
         [ "${SECONDS}" -lt "${deadline}" ] || fail "${what} did not answer (last status ${code:-none})"
         sleep 2
     done
@@ -112,6 +119,7 @@ wait_body() {
     while :; do
         body="$(curl -s "${url}" || true)"
         [ "${body}" = "${want}" ] && return 0
+        assert_running
         [ "${SECONDS}" -lt "${deadline}" ] || {
             code="$(curl -s -o /dev/null -w '%{http_code}' "${url}" || true)"
             fail "${what} answered ${code:-nothing} with '${body}', want '${want}'"
@@ -128,6 +136,7 @@ wait_mcp() {
         if mcp "${url}" "${TOKEN}" "${INIT}" 2>/dev/null | grep -q '"serverInfo"'; then
             return 0
         fi
+        assert_running
         [ "${SECONDS}" -lt "${deadline}" ] || fail "${what} did not become ready"
         sleep 3
     done
@@ -219,6 +228,7 @@ WEB_URL="http://127.0.0.1:${PORT}"
 wait_status "${WEB_URL}/" 302 "the login redirect"
 deadline=$((SECONDS + TIMEOUT))
 until curl -s -D - -o /dev/null "${WEB_URL}/" | grep -qi '^location: /login/'; do
+    assert_running
     [ "${SECONDS}" -lt "${deadline}" ] || fail "the web GUI does not redirect to the login page"
     sleep 2
 done
